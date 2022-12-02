@@ -45,17 +45,18 @@ target_link_libraries(uws
         u_sockets
 )
 
-add_executable(echo_server echo_server.cpp)
+add_executable(uws_echo_server echo_server.cpp)
 
-target_link_libraries(echo_server
+target_link_libraries(uws_echo_server
         PRIVATE
         uws
         )
 
-target_link_options(echo_server
+target_link_options(uws_echo_server
         PRIVATE
         -flto
         )
+
 
 #add_executable(echo_client echo_client.cpp)
 #target_link_libraries(echo_client

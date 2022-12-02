@@ -8,20 +8,24 @@
 
 int main(int argc, const char** argv) {
 
-    if (argc != 3) {
-        printf("Invalid parameters!\nUsage: ./echo_server port max_msg_len\n");
+    if (argc < 4) {
+        printf("Invalid parameters!\nUsage: ./echo_server ip_address port max_msg_len\n");
         return -1;
     }
-    int port = atoi(argv[1]);
-    if (port <= 0) {
-        printf("Invalid port: %s\n", argv[1]);
+
+    const char* SERVER_IP = argv[1];
+
+    int SERVER_PORT = atoi(argv[2]);
+    if (SERVER_PORT <= 0) {
+        printf("Invalid port: %s\n", argv[2]);
         return -1;
     }
-    long long max_msg_len = atoll(argv[2]);
+    long long max_msg_len = atoll(argv[3]);
     if (max_msg_len <= 0) {
-        printf("invalid max_msg_len: %s\n", argv[2]);
+        printf("invalid max_msg_len: %s\n", argv[3]);
         return -1;
     }
+    size_t MAX_DATA_LEN = size_t(max_msg_len);
 
 
     /* ws->getUserData returns one of these */
@@ -44,7 +48,7 @@ int main(int argc, const char** argv) {
             /* Settings */
 //            .compression = uWS::CompressOptions(uWS::DEDICATED_COMPRESSOR_4KB | uWS::DEDICATED_DECOMPRESSOR),
             .compression = uWS::CompressOptions(uWS::DISABLED),
-            .maxPayloadLength = (uint32_t)max_msg_len,
+            .maxPayloadLength = (uint32_t)MAX_DATA_LEN,
             .idleTimeout = 16,
             .maxBackpressure = 100 * 1024 * 1024,
             .closeOnBackpressureLimit = false,
@@ -72,9 +76,9 @@ int main(int argc, const char** argv) {
                 /* You may access ws->getUserData() here */
                 std::cout << "connection closed\n";
             }
-    }).listen(test::listen_addr, port, [&](auto *listen_socket) {
+    }).listen(SERVER_IP, SERVER_PORT, [&](auto *listen_socket) {
         if (listen_socket) {
-            std::cout << "Listening on port " << port << std::endl;
+            std::cout << "Listening on port " << SERVER_PORT << std::endl;
         }
     }).run();
 }

@@ -8,7 +8,7 @@
 
 int main(int argc, const char** argv) {
 
-    if (argc != 4) {
+    if (argc < 4) {
         printf("Invalid parameters!\nUsage: ./echo_server port max_msg_len msg_cnt\n");
         return -1;
     }
