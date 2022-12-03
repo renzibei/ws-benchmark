@@ -33,7 +33,9 @@ You can choose which server and which client to use. And we provide a python scr
 for you to test it.
 
 ```
-Usage: python3 ../tools/bench_ws.py c|s (client or server) lib_name host_ip host_port output_data_file [other arguments for dpdk]
+Usage:\npython3 tools/bench_ws.py c|s (client or server) lib_name host_ip host_port \
+              process_cnt client_cnt_per_proc client_restart_cnt \ 
+              output_data_file [other arguments for dpdk]
 ```
 
 The data will be exported as a csv file.
