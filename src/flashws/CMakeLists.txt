@@ -36,25 +36,28 @@ if(NOT MSVC)
             fws_echo_client
             PRIVATE
             -O3
-            #            -g
+                        -g
             -Wall -Wextra
-            #            -fsanitize=address
+#                        -fsanitize=address
+            -flto
     )
 
     target_compile_options(
             fws_echo_server
             PRIVATE
             -O3
-            #            -g
+                        -g
             -Wall -Wextra
             #            -fsanitize=address
+            -flto
     )
 endif()
 
 
 target_link_options(fws_echo_client
         PRIVATE
-        #        -fsanitize=address
+#                -fsanitize=address
+        -flto
         )
 
 
@@ -62,5 +65,5 @@ target_link_options(fws_echo_client
 target_link_options(fws_echo_server
         PRIVATE
         #        -fsanitize=address
-
+        -flto
         )

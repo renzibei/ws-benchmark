@@ -39,6 +39,11 @@ target_compile_definitions(uws
         -DUWS_NO_ZLIB
         )
 
+target_compile_options(uws
+        INTERFACE
+        -flto
+        )
+
 
 target_link_libraries(uws
         INTERFACE
