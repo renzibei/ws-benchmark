@@ -14,10 +14,13 @@ def get_work_dir_paths():
 def get_lib_names(lib):
     fws_list = ("flashws", "fws")
     uws_list = ("uwebsockets", "uws")
+    tpp_list = ("websocketpp", "tpp")
     if lib in fws_list:
         return fws_list
     if lib in uws_list:
         return uws_list
+    if lib in tpp_list:
+        return tpp_list
     print("lib %s not valid" % lib)
     exit(-1)
 
@@ -74,9 +77,12 @@ def test_echo():
     #     max_msg_size = int(sys.argv[7])
 
     if not is_server:
-        with open(output_filename, "w") as out_f:
-            out_f.write("msg_size,avg_goodput,P0_latency,P50_latency,P99_latency,"
-                        "P999_latency,P100_latency\n")
+
+        for i in range(process_cnt):
+            temp_filename = output_filename + "_%d" % i
+            with open(temp_filename, "w") as out_f:
+                out_f.write("msg_size,avg_goodput,P0_latency,P50_latency,P99_latency,"
+                            "P999_latency,P100_latency\n")
 
     root_dir_path, build_dir_path = get_work_dir_paths()
     exe_file_path = get_server_or_client_exe_path(is_server, lib_name=lib_name,
@@ -84,8 +90,9 @@ def test_echo():
     print("will run %s" % exe_file_path)
 
     min_msg_size_log = 6
-    # min_msg_size_log = 20
-    max_msg_size_log = 6
+    # min_msg_size_log = 12
+    # max_msg_size_log = 21
+    max_msg_size_log = 13
     # if is_server:
     #     msg_size = 1 << max_msg_size_log
     #     arg_list = [exe_file_path, host_ip, host_port, str(msg_size)]

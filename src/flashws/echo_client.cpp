@@ -40,7 +40,7 @@ namespace test {
             uint8_t opcode;
             uint8_t is_msg_end;
         };
-        BufferStatus recv_status_;
+//        BufferStatus recv_status_;
 
 //        int client_fd = 0;
 
@@ -187,7 +187,7 @@ namespace test {
                 recv_bytes_sum += io_buf.size;
 
 
-                recv_status_ = {uint8_t(opcode), uint8_t(is_msg_end)};
+//                recv_status_ = {uint8_t(opcode), uint8_t(is_msg_end)};
 //                buf_deque.push_back(std::move(io_buf));
 //                status_deque.push_back({uint8_t(opcode), uint8_t(is_msg_end)});
 
@@ -251,7 +251,7 @@ namespace test {
 
 //                    cur_read_pos = 0;
 
-                    if FWS_UNLIKELY(!(loop_cnt & 0xffffUL)) {
+                    if FWS_UNLIKELY(!(loop_cnt & 0x3fffUL)) {
                         size_t temp_hash = HashArr(temp_buf_->data + temp_buf_->start_pos, temp_buf_->size);
 //                        size_t temp_hash = HashBufArr(buf_deque.begin(), buf_deque.end());
                         double round_trip_us = double(round_trip_ns) / 1000.0;
@@ -365,7 +365,7 @@ namespace test {
             auto& client_ctx = fd_to_socks[fd];
 
             auto& buf = client_ctx.temp_buf;
-            auto status = recv_status_;
+//            auto status = recv_status_;
 //            auto status = status_deque.front();
             size_t target_size = buf.size;
 //            bool fin = false;
@@ -386,7 +386,7 @@ namespace test {
 //                memcpy(dis_buf, buf.data + buf.start_pos + buf.size - 4LL, 4);
 //            }
             ssize_t write_ret = w_socket.WriteFrame(buf, available_size,
-                                                    static_cast<fws::WSTxFrameType>(status.opcode), true);
+                                                    static_cast<fws::WSTxFrameType>(2U), true);
             if FWS_UNLIKELY(write_ret < 0) {
                 printf("Error, write return %zd\n", write_ret);
                 std::abort();
@@ -401,7 +401,7 @@ namespace test {
 //                if (buf_deque.empty()) {
                 buf = fws::RequestBuf(MAX_DATA_LEN + fws::constants::SUGGEST_RESERVE_WS_HDR_SIZE);
                 buf.start_pos = fws::constants::SUGGEST_RESERVE_WS_HDR_SIZE;
-                FWS_ASSERT(status.is_msg_end == 1);
+//                FWS_ASSERT(status.is_msg_end == 1);
                 int stop_ret = w_socket.StopWriteRequest(fq);
                 FWS_ASSERT(stop_ret >= 0);
 //                FWS_ASSERT(w_socket.RequestReadEvent(fq) == 0);
@@ -460,6 +460,7 @@ namespace test {
         ClientContext * FWS_RESTRICT ctx = (ClientContext *)arg;
         if FWS_UNLIKELY(ctx->wait_shutdown) {
             // wait for secondary process to exit
+            // TODO: Add this in multiprocess test
             std::this_thread::sleep_for(std::chrono::seconds(10));
             std::exit(0);
         }
@@ -659,7 +660,7 @@ namespace test {
 
 //        ctx.fd_to_socks[client_fd] = std::move(ws_client);
         ctx.wait_evs = {MAX_EVENT_NUM, fws::FEvent()};
-        ctx.recv_status_ = {uint8_t(2), uint8_t(1)};
+//        ctx.recv_status_ = {uint8_t(2), uint8_t(1)};
         ctx.out_fp = output_fp;
         printf("start to run loop\n");
         fws::StartRunLoop(OneLoop, &ctx);

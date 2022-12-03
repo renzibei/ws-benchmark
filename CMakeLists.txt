@@ -3,3 +3,4 @@ project(test_uwebsockets)
 
 add_subdirectory(src/flashws)
 add_subdirectory(src/uwebsockets)
+add_subdirectory(src/websocketpp)
