@@ -4,3 +4,6 @@
 [submodule "third_party/flashws"]
 	path = third_party/flashws
 	url = https://github.com/renzibei/flashws.git
+[submodule "third_party/websocketpp"]
+	path = third_party/websocketpp
+	url = https://github.com/zaphoyd/websocketpp.git
