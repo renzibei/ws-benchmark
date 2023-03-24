@@ -52,7 +52,7 @@ int main(int argc, const char** argv) {
     };
 
     auto count_stats = [&](){
-        if (((last_interval_recv_msg_cnt & 0x3fffffUL)
+        if (((last_interval_recv_msg_cnt & 0xffffUL)
 //                           && (last_interval_recv_bytes <= MAX_DATA_LEN * 4096UL)
                           ) || last_interval_recv_msg_cnt == 0) {
             return;

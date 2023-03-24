@@ -101,16 +101,19 @@ namespace test {
 //            printf("OnConnected called fd: %d\n", w_socket.tcp_socket().fd());
             std::string sub_protocols_str(resp_sub_protocol);
             std::string extensions_str(resp_extensions);
+//            printf("Write first msg\n");
+            FWS_ASSERT(this->WriteFirstMsg(w_socket) == 0);
 //            printf("accept protocols: %s, extensions: %s\n",
 //                   sub_protocols_str.c_str(),
 //                   extensions_str.c_str());
-            FWS_ASSERT(w_socket.RequestWriteEvent(fq) == 0);
+//            FWS_ASSERT(w_socket.RequestWriteEvent(fq) == 0);
 //            FWS_ASSERT(w_socket.StopReadRequest(fq) == 0);
             return 0;
         }
 
         int OnFailToConnect(WSSocket &w_socket, std::string_view http_resp) {
-            printf("OnFailToConnect called, http resp:\n%s\n",
+            printf("OnFailToConnect called\n");
+            printf("http resp:\n%s\n",
                    std::string(http_resp).c_str());
             return 0;
         }
@@ -119,6 +122,12 @@ namespace test {
 //            printf("OnNeedStopWriteRequest called\n");
             return w_socket.StopWriteRequest(fq);
         }
+
+        int OnNeedRequestWrite(WSSocket &w_socket) {
+            return w_socket.RequestWriteEvent(fq);
+        }
+
+
 
         void EndClient() {
             auto now_ns_from_epoch = std::chrono::high_resolution_clock::now().time_since_epoch().count();
@@ -130,11 +139,11 @@ namespace test {
             printf("INFO! round trip latency histogram (ns)\n");
             rtt_hist.PrintHdr(30UL);
 
-            for (auto it = fd_to_socks.begin(); it != fd_to_socks.end(); ) {
+            for (auto it = fd_to_socks.begin(); it != fd_to_socks.end(); ++it ) {
 
                 auto &socket = it->second.sock;
-                socket.Close(fws::WS_NORMAL_CLOSE, {});
-                it = fd_to_socks.erase(it);
+                socket.Close(*this, fws::WS_NORMAL_CLOSE, {});
+//                it = fd_to_socks.erase(it);
             }
 
             wait_shutdown = true;
@@ -202,10 +211,11 @@ namespace test {
 
                     auto client_msg_cnt = ++client_ctx->msg_cnt;
                     bool this_client_finish_all_connection = false;
+                    bool new_client_trying_connect = false;
                     if (client_msg_cnt == MSG_LIMIT_PER_CLIENT) {
-                        int old_fd = ws_socket.tcp_socket().fd();
+//                        int old_fd = ws_socket.tcp_socket().fd();
 
-                        ws_socket.Close(fws::WS_NORMAL_CLOSE, {});
+                        ws_socket.Close(*this, fws::WS_NORMAL_CLOSE, {});
 
                         auto cur_reborn_cnt = client_ctx->reborn_cnt;
                         if FWS_LIKELY(cur_reborn_cnt < REBORN_LIMIT_FOR_CLIENT) {
@@ -213,6 +223,7 @@ namespace test {
                             if FWS_UNLIKELY(!new_opt_sock.has_value()) {
                                 std::abort();
                             }
+                            new_client_trying_connect = true;
                             auto& new_sock = new_opt_sock.value();
                             int new_fd = new_sock.tcp_socket().fd();
 //                            printf("create new client, new_fd: %d, old_fd: %d\n",
@@ -221,7 +232,7 @@ namespace test {
 
 
                             auto old_buf = std::move(*temp_buf_);
-                            fd_to_socks.erase(old_fd);
+//                            fd_to_socks.erase(old_fd);
 
                             ++cur_reborn_cnt;
 
@@ -233,7 +244,7 @@ namespace test {
                             temp_buf_ = &(client_ctx->temp_buf);
                         }
                         else {
-                            fd_to_socks.erase(old_fd);
+//                            fd_to_socks.erase(old_fd);
                             this_client_finish_all_connection = true;
                             client_ctx = nullptr;
                         }
@@ -245,7 +256,7 @@ namespace test {
                         EndClient();
                         return 0;
                     }
-                    if (this_client_finish_all_connection) {
+                    if (this_client_finish_all_connection | new_client_trying_connect) {
                         return 0;
                     }
 
@@ -272,7 +283,7 @@ namespace test {
                                "rx + tx: %.2lf Mbit/s, hash value: %zu, active fd cnt: %zu\n",
                                round_trip_us, avg_recv_throughput_mbps +
                                               avg_send_throughput_mbps,temp_hash,
-                                              fd_to_socks.size());
+                               fd_to_socks.size());
                     }
                     FWS_ASSERT(is_msg_end);
 
@@ -280,45 +291,45 @@ namespace test {
 
                     start_write_tick = cpu_timer.Start();
                     auto &cur_sock = client_ctx->sock;
-                    int writable_size = cur_sock.tcp_socket().GetWritableBytes();
-                    if FWS_UNLIKELY(writable_size < 0) {
-                        printf("Failed to get writable bytes, %s\n", fws::GetErrorStrP());
-                        std::abort();
-                    }
+//                    int writable_size = cur_sock.tcp_socket().GetWritableBytes();
+//                    if FWS_UNLIKELY(writable_size < 0) {
+//                        printf("Failed to get writable bytes, %s\n", fws::GetErrorStrP());
+//                        std::abort();
+//                    }
 //                    writable_size = 0;
 //                    printf("writable size: %d\n", writable_size);
-//                    size_t target_size = temp_buf_->size;
-//                    size_t written_size = 0;
+                    size_t target_size = temp_buf_->size;
+                    size_t written_size = 0;
 //                    if (writable_size > 0) {
-//
-//                        ssize_t write_ret = cur_sock.WriteFrame(*temp_buf_, writable_size,
-//                                                                 (fws::WSTxFrameType)recv_status_.opcode, true);
-////                        FWS_ASSERT(write_ret >= 0);
-//                        if FWS_UNLIKELY(write_ret < 0) {
-//                            printf("WriteFrame return %zd, %s\n",
-//                                   write_ret, fws::GetErrorStrP());
-//                            std::abort();
-//                        }
-//                        written_size = size_t(write_ret);
-//                    }
-//                    send_bytes_sum += written_size;
-//                    if (written_size < target_size) {
-                        int request_write_ret = cur_sock.RequestWriteEvent(fq);
-                        if FWS_UNLIKELY(request_write_ret < 0) {
-                            printf("request write return %d, fq %d, fd %d, %s\n",
-                                   request_write_ret,  fq.fd,
-                                   cur_sock.tcp_socket().fd(), fws::GetErrorStrP());
+                    {
+                        ssize_t write_ret = cur_sock.WriteFrame(*this, *temp_buf_,
+                                                                static_cast<fws::WSTxFrameType>(2U), true);
+//                        FWS_ASSERT(write_ret >= 0);
+                        if FWS_UNLIKELY(write_ret < 0) {
+                            printf("WriteFrame return %zd, %s\n",
+                                   write_ret, std::strerror(errno));
                             std::abort();
                         }
-//                        FWS_ASSERT(request_write_ret == 0);
-//                    printf("Request write ret: %d\n", request_write_ret);
-//                        FWS_ASSERT(cur_sock.StopReadRequest(fq) == 0);
-//                    }
-//                    else {
-//                        *temp_buf_ = fws::RequestBuf(MAX_DATA_LEN + fws::constants::SUGGEST_RESERVE_WS_HDR_SIZE);
-//                        temp_buf_->start_pos = fws::constants::SUGGEST_RESERVE_WS_HDR_SIZE;
-//
-//                    }
+                        written_size = size_t(write_ret);
+                    }
+                    send_bytes_sum += written_size;
+                    if (written_size < target_size) {
+                        int request_write_ret = cur_sock.RequestWriteEvent(fq);
+//                        if FWS_UNLIKELY(request_write_ret < 0) {
+//                            printf("request write return %d, fq %d, fd %d, %s\n",
+//                                   request_write_ret,  fq.fd,
+//                                   cur_sock.tcp_socket().fd(), fws::GetErrorStrP());
+//                            std::abort();
+//                        }
+                        FWS_ASSERT(request_write_ret == 0);
+//                        printf("Request write ret: %d\n", request_write_ret);
+                        FWS_ASSERT(cur_sock.StopReadRequest(fq) == 0);
+                    }
+                    else {
+                        *temp_buf_ = fws::RequestBuf(MAX_DATA_LEN + fws::constants::SUGGEST_RESERVE_WS_HDR_SIZE);
+                        temp_buf_->start_pos = fws::constants::SUGGEST_RESERVE_WS_HDR_SIZE;
+
+                    }
 
 
 
@@ -351,15 +362,27 @@ namespace test {
 
 
         int OnCloseConnection(WSSocket &w_socket, uint32_t status_code, std::string_view reason) {
-            std::string reason_str(reason);
-            printf("OnCloseConnection called, fd: %d, status_code %u, reason: %s\n",
-                   w_socket.tcp_socket().fd(), status_code, reason_str.c_str());
+            if (status_code != 1000U) {
+                std::string reason_str(reason);
+                printf("OnCloseConnection called, fd: %d, status_code %u, reason: %s\n",
+                       w_socket.tcp_socket().fd(), status_code, reason_str.c_str());
+            }
+
             return 0;
         }
 
-        int OnWritable(WSSocket &w_socket, size_t available_size) {
-//            printf("OnWritable called\n");
-//            auto& buf = buf_deque.front();
+        int OnCleanSocket(int fd) {
+            auto find_it = fd_to_socks.find(fd);
+            FWS_ASSERT(find_it != fd_to_socks.end());
+            fd_to_socks.erase(find_it);
+            if (fd_to_socks.empty()) {
+                printf("fd_to_socks empty after EOF, to end\n");
+                EndClient();
+            }
+            return 0;
+        }
+
+        int WriteFirstMsg(WSSocket &w_socket) {
             int fd = w_socket.tcp_socket().fd();
             FWS_ASSERT(fd_to_socks.find(fd) != fd_to_socks.end());
             auto& client_ctx = fd_to_socks[fd];
@@ -370,7 +393,7 @@ namespace test {
             size_t target_size = buf.size;
 //            bool fin = false;
 
-            if (buf.size == MAX_DATA_LEN) {
+            if (size_t(buf.size) == MAX_DATA_LEN) {
                 if FWS_UNLIKELY(send_bytes_sum == 0) {
                     start_ns_from_epoch = std::chrono::high_resolution_clock::now().time_since_epoch().count();
                 }
@@ -385,10 +408,10 @@ namespace test {
 //            if (buf.size > 4) {
 //                memcpy(dis_buf, buf.data + buf.start_pos + buf.size - 4LL, 4);
 //            }
-            ssize_t write_ret = w_socket.WriteFrame(buf, available_size,
+            ssize_t write_ret = w_socket.WriteFrame(*this, buf,
                                                     static_cast<fws::WSTxFrameType>(2U), true);
             if FWS_UNLIKELY(write_ret < 0) {
-                printf("Error, write return %zd\n", write_ret);
+                printf("Error, write return %zd, %s\n", write_ret, fws::GetErrorStrP());
                 std::abort();
             }
             send_bytes_sum += write_ret;
@@ -402,8 +425,8 @@ namespace test {
                 buf = fws::RequestBuf(MAX_DATA_LEN + fws::constants::SUGGEST_RESERVE_WS_HDR_SIZE);
                 buf.start_pos = fws::constants::SUGGEST_RESERVE_WS_HDR_SIZE;
 //                FWS_ASSERT(status.is_msg_end == 1);
-                int stop_ret = w_socket.StopWriteRequest(fq);
-                FWS_ASSERT(stop_ret >= 0);
+//                int stop_ret = w_socket.StopWriteRequest(fq);
+//                FWS_ASSERT(stop_ret >= 0);
 //                FWS_ASSERT(w_socket.RequestReadEvent(fq) == 0);
 //                    has_requested_write = false;
 //                    if (status.is_msg_end) {
@@ -414,6 +437,64 @@ namespace test {
             }
             return 0;
         }
+
+//        int OnWritable(WSSocket &w_socket, size_t available_size) {
+////            printf("OnWritable called\n");
+////            auto& buf = buf_deque.front();
+//            int fd = w_socket.tcp_socket().fd();
+//            FWS_ASSERT(fd_to_socks.find(fd) != fd_to_socks.end());
+//            auto& client_ctx = fd_to_socks[fd];
+//
+//            auto& buf = client_ctx.temp_buf;
+////            auto status = recv_status_;
+////            auto status = status_deque.front();
+//            size_t target_size = buf.size;
+////            bool fin = false;
+//
+//            if (size_t(buf.size) == MAX_DATA_LEN) {
+//                if FWS_UNLIKELY(send_bytes_sum == 0) {
+//                    start_ns_from_epoch = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+//                }
+//                start_write_tick = cpu_timer.Start();
+//            }
+//
+////            if (available_size >= target_size + fws::GetTxWSFrameHdrSize<false>(target_size)
+////                && status.is_msg_end) {
+////                fin = true;
+////            }
+////            char dis_buf[5] = {0};
+////            if (buf.size > 4) {
+////                memcpy(dis_buf, buf.data + buf.start_pos + buf.size - 4LL, 4);
+////            }
+//            ssize_t write_ret = w_socket.WriteFrame(*this, buf, available_size,
+//                                                    static_cast<fws::WSTxFrameType>(2U), true);
+//            if FWS_UNLIKELY(write_ret < 0) {
+//                printf("Error, write return %zd, %s\n", write_ret, fws::GetErrorStrP());
+//                std::abort();
+//            }
+//            send_bytes_sum += write_ret;
+//
+////            printf("Write %zd of %zu bytes, ava size: %zu, last 4 bytes: %s\n",
+////                   write_ret, target_size, available_size, dis_buf);
+//            if (size_t(write_ret) == target_size) {
+////                buf_deque.pop_front();
+////                status_deque.pop_front();
+////                if (buf_deque.empty()) {
+//                buf = fws::RequestBuf(MAX_DATA_LEN + fws::constants::SUGGEST_RESERVE_WS_HDR_SIZE);
+//                buf.start_pos = fws::constants::SUGGEST_RESERVE_WS_HDR_SIZE;
+////                FWS_ASSERT(status.is_msg_end == 1);
+////                int stop_ret = w_socket.StopWriteRequest(fq);
+////                FWS_ASSERT(stop_ret >= 0);
+////                FWS_ASSERT(w_socket.RequestReadEvent(fq) == 0);
+////                    has_requested_write = false;
+////                    if (status.is_msg_end) {
+////                        w_socket.CloseCon<true>(1000, "");
+////                    }
+//
+////                }
+//            }
+//            return 0;
+//        }
 
         std::optional<WSSocket> NewWSClient() {
             WSSocket ws_client{};
@@ -436,20 +517,12 @@ namespace test {
                 }
             }
 
+
             int client_fd = ws_client.tcp_socket().fd();
-            fws::FEvent temp_events[2] = {
-                    fws::FEvent(client_fd, fws::FEVFILT_WRITE, fws::FEV_ADD, fws::FEFFLAG_NONE,
-                                MAX_EVENT_NUM, nullptr),
-                    fws::FEvent(client_fd, fws::FEVFILT_READ, fws::FEV_ADD, fws::FEFFLAG_NONE,
-                                MAX_EVENT_NUM, nullptr),
-            };
+            int add_ret = fws::AddFEvent(fq, client_fd, fws::FEVAC_READ | fws::FEVAC_WRITE);
 
+            FWS_ASSERT(add_ret == 0);
 
-            if (fws::FEventWait(fq, temp_events, 2, nullptr, 0, nullptr) < 0) {
-                printf("Failed to add read event, %s\n",
-                       std::string(fws::GetErrorStrV()).c_str());
-                return std::nullopt;
-            }
             return ws_client;
         }
     };
@@ -461,7 +534,7 @@ namespace test {
         if FWS_UNLIKELY(ctx->wait_shutdown) {
             // wait for secondary process to exit
             // TODO: Add this in multiprocess test
-            std::this_thread::sleep_for(std::chrono::seconds(10));
+//            std::this_thread::sleep_for(std::chrono::seconds(10));
             std::exit(0);
         }
         int num_event = fws::FEventWait(ctx->fq, nullptr, 0, ctx->wait_evs.data(), MAX_EVENT_NUM, nullptr);
@@ -476,30 +549,34 @@ namespace test {
         FWS_ASSERT(num_event >= 0);
         for (int k = 0; k < num_event; ++k) {
             auto &event = ctx->wait_evs[k];
-            int cur_fd = (int)event.ident;
+            int cur_fd = event.fd();
             auto &handler = *ctx;
-            if FWS_UNLIKELY(event.flags & fws::FEV_ERROR) {
-                printf("event error, flags: %u, fd: %d\n",
-                       event.flags, cur_fd);
-                std::abort();
-            }
-            else if(event.flags & fws::FEV_EOF) {
-//                FWS_ASSERT(cur_fd != ctx->ws_server.tcp_socket().fd());
-                printf("Client exit. fd=%d\n", cur_fd);
-                auto find_it = ctx->fd_to_socks.find(cur_fd);
-                if (find_it != ctx->fd_to_socks.end()) {
-                    find_it->second.sock.Close(fws::WS_ABNORMAL_CLOSE, {});
-                    ctx->fd_to_socks.erase(find_it);
-                }
-                if (ctx->fd_to_socks.empty()) {
-                    printf("fd_to_socks empty after EOF, to end\n");
-                    ctx->EndClient();
-                }
-
-//                ctx->EndClient();
-//                std::exit(0);
-            }
-            else {
+//            if FWS_UNLIKELY(event.has_error()) {
+//                printf("event error, flags: %u, fd: %d\n",
+//                       event.socket_err_code(), cur_fd);
+//                std::abort();
+//            }
+//            else if(event.is_eof()) {
+//                // TODO: handle eof in Event Handler
+////                FWS_ASSERT(cur_fd != ctx->ws_server.tcp_socket().fd());
+//                int error_code = event.socket_err_code();
+//                printf("Client exit. fd=%d for eof, errno = %d\n",
+//                       cur_fd, error_code);
+//                auto find_it = ctx->fd_to_socks.find(cur_fd);
+//                if (find_it != ctx->fd_to_socks.end()) {
+//                    find_it->second.sock.Close(fws::WS_ABNORMAL_CLOSE, {});
+//                    ctx->fd_to_socks.erase(find_it);
+//                }
+//                if (ctx->fd_to_socks.empty()) {
+//                    printf("fd_to_socks empty after EOF, to end\n");
+//                    ctx->EndClient();
+//                }
+//
+////                ctx->EndClient();
+////                std::exit(0);
+//            }
+//            else
+            {
 //                if (event.filter == fws::FEVFILT_READ) {
 //#ifdef FWS_DEV_DEBUG
 //                    size_t available_size = size_t(event.data);
@@ -649,11 +726,11 @@ namespace test {
 //        ctx.data_hash = ctx.HashBufArr(&temp_buf, &temp_buf + 1);
 //        ctx.buf_deque.push_back(std::move(temp_buf));
 //        ctx.status_deque.push_back({1U, 1U});
-            printf("data hash: %lu\n", ctx.data_hash);
+//            printf("data hash: %lu\n", ctx.data_hash);
             int client_fd = ws_client.tcp_socket().fd();
             ctx.fd_to_socks.emplace(client_fd, ClientContext::ClientCtx{
-                std::move(ws_client),
-                1, 0, std::move(temp_buf) });
+                    std::move(ws_client),
+                    1, 0, std::move(temp_buf) });
 
         }
 //        ctx.client_fd = client_fd;
