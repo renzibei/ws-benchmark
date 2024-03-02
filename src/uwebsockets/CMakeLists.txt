@@ -3,34 +3,61 @@ project(test_uwebsockets)
 
 set(CMAKE_CXX_STANDARD 20)
 
+find_package(OpenSSL REQUIRED)
+
 set(U_WS_DIR "../../third_party/uWebSockets")
 set(U_SOCKETS_DIR  "${U_WS_DIR}/uSockets")
 
 file(GLOB u_sockets_src
         "${U_SOCKETS_DIR}/src/*.c"
         "${U_SOCKETS_DIR}/src/crypto/*.c"
+        "${U_SOCKETS_DIR}/src/crypto/*.cpp"
         "${U_SOCKETS_DIR}/src/eventing/*.c"
-        )
+)
 
 file(GLOB u_sockets_hdr
         "${U_SOCKETS_DIR}/src"
-        )
+)
 
 add_library(u_sockets ${u_sockets_src})
 #include_directories(${u_socket})
+#target_include_directories(u_sockets
+#        PUBLIC
+#        ${u_sockets_hdr}
+#        )
+#
+#target_compile_definitions(u_sockets
+#        PRIVATE
+#        -DLIBUS_USE_OPENSSL
+##        -DLIBUS_NO_SSL
+#        )
+#
+#target_compile_options(u_sockets
+#        PRIVATE
+#        -std=c11
+#)
+
 target_include_directories(u_sockets
         PUBLIC
         ${u_sockets_hdr}
-        )
+)
 
 target_compile_definitions(u_sockets
         PRIVATE
-        -DLIBUS_NO_SSL)
-
-target_compile_options(u_sockets
-        PRIVATE
-        -std=c11
+        -DLIBUS_USE_OPENSSL
 )
+
+target_link_libraries(u_sockets
+        PRIVATE
+        OpenSSL::SSL
+)
+set_target_properties(u_sockets
+        PROPERTIES
+        C_STANDARD 11
+        CXX_STANDARD 20
+
+)
+
 
 add_library(uws INTERFACE)
 target_include_directories(uws INTERFACE ${U_WS_DIR}/src)

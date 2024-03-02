@@ -2,7 +2,6 @@
 
 #include <libusockets.h>
 #include <cerrno>
-const int SSL = 0;
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,24 +9,35 @@ const int SSL = 0;
 #include <vector>
 #include <chrono>
 #include "test_def.h"
+#include "flat_hash_map.h"
 
-struct Buffer {
-    char data[MAX_DATA_LEN];
-    size_t start_pos;
-    size_t size;
-};
+//struct ClientContext {
+//    char data[MAX_DATA_LEN];
+//    size_t start_pos = 0;
+//    size_t size = 0;
+//};
+
 
 /* Our socket extension */
-struct echo_socket {
-//    char *backpressure;
-//    int length;
-//    std::vector<Buffer> data_vec;
-    Buffer buf;
+//struct echo_socket {
+////    char *backpressure;
+////    int length;
+////    std::vector<Buffer> data_vec;
+//    int64_t active_conns_in_ctx = 0;
+//    ska::flat_hash_map<int, ClientContext> fd_to_ctx;
+//
+//};
+struct Buffer {
+    char data[MAX_DATA_LEN];
+    size_t start_pos = 0;
+    size_t size = 0;
+
 };
 
 /* Our socket context extension */
-struct echo_context {
-
+struct echo_socket {
+    Buffer buf;
+    int64_t active_conns_in_ctx = 0;
 };
 
 /* Loop wakeup handler */
@@ -52,6 +62,7 @@ uint64_t last_interval_send_msg_cnt = 0;
 
 int64_t interval_start_ns = 0;
 int64_t active_connections = 0;
+int64_t dup_act_conns = 0;
 
 void CountStats() {
     if (((last_interval_recv_msg_cnt & 0xffffUL)
@@ -78,10 +89,10 @@ void CountStats() {
 //                       last_interval_recv_msg_cnt, last_interval_send_msg_cnt);
 //            }
     printf("avg rx+tx goodput: %.2lf Mbps, %.4lf 10^6 msg/sec,"
-           "active_client_cnt: %ld\n",
+           "active_client_cnt: %ld, active_cnt in ctx: %ld\n",
            recv_throughput_mbps + send_throughput_mbps,
            recv_mm_msg_per_sec + send_mm_msg_per_sec,
-           active_connections);
+           active_connections, dup_act_conns);
 
     last_interval_recv_bytes = 0;
     last_interval_send_bytes = 0;
@@ -128,6 +139,7 @@ struct us_socket_t *on_echo_socket_writable(struct us_socket_t *s) {
 struct us_socket_t *on_echo_socket_close(struct us_socket_t *s, int code, void *reason) {
     struct echo_socket *es = (struct echo_socket *) us_socket_ext(SSL, s);
     --active_connections;
+    dup_act_conns = --es->active_conns_in_ctx;
 //    printf("Client disconnected\n");
 //    free(es->buf.data);
 //    free(es->backpressure);
@@ -193,13 +205,15 @@ struct us_socket_t *on_echo_socket_data(struct us_socket_t *s, char *data, int l
 /* Socket opened handler */
 struct us_socket_t *on_echo_socket_open(struct us_socket_t *s, int is_client, char *ip, int ip_length) {
     struct echo_socket *es = (struct echo_socket *) us_socket_ext(SSL, s);
-
+    int fd = (int64_t)us_socket_get_native_handle(SSL, s);
     /* Initialize the new socket's extension */
 //    es->backpressure = 0;
 //    es->length = 0;
 //    es->buf.data = (char*)malloc(MAX_DATA_LEN);
     es->buf.start_pos = 0;
     es->buf.size = 0;
+    es->active_conns_in_ctx = 0;
+    dup_act_conns = ++es->active_conns_in_ctx;
     ++active_connections;
     /* Start a timeout to close the socket if boring */
 //    us_socket_timeout(SSL, s, 30);
@@ -220,12 +234,17 @@ int main() {
     struct us_loop_t *loop = us_create_loop(0, on_wakeup, on_pre, on_post, 0);
 
     /* Socket context */
-    struct us_socket_context_options_t options = {};
+    struct us_socket_context_options_t options = {
+    };
 //    options.key_file_name = "/home/alexhultman/uWebSockets.js/misc/key.pem";
 //    options.cert_file_name = "/home/alexhultman/uWebSockets.js/misc/cert.pem";
 //    options.passphrase = "1234";
+    if constexpr (SSL) {
+        options.cert_file_name = cert_file_path;
+        options.key_file_name = key_file_path;
+    }
 
-    struct us_socket_context_t *echo_context = us_create_socket_context(SSL, loop, sizeof(struct echo_context), options);
+    struct us_socket_context_t *echo_context = us_create_socket_context(SSL, loop, sizeof(struct echo_socket), options);
 
 
     /* Registering event handlers */

@@ -3,7 +3,7 @@
 #include <cstddef>
 
 #define SERVER_PORT     58600
-//#define MAX_DATA_LEN    (1 << 18)
+//#define MAX_DATA_LEN    (1 << 16)
 #define MAX_DATA_LEN 64
 
 //#define TEST_TIMES      1'00'000
@@ -18,10 +18,16 @@
 #define FSTACK_ONE_TIME_FULL_THRES 16384
 #define MAX_FSTACK_ONE_TIME_WRITE_SIZE 16384
 
-#define SEND_LATENCY_DATA 0
+#define SEND_LATENCY_DATA 1
 
+inline constexpr int SSL = 1;
+inline constexpr const char* cert_file_path = "/root/codes/ws-benchmark/certs/server.crt";
+inline constexpr const char* key_file_path = "/root/codes/ws-benchmark/certs/server.key";
+inline constexpr const char* ca_file_path = "/root/codes/ws-benchmark/certs/ca.pem";
 
 namespace test {
+
+
 // aws-vi01
 //inline constexpr const char * SERVER_IP  = "172.31.86.246";
 //inline constexpr const char* SERVER_IP = "172.31.99.99";
@@ -35,12 +41,12 @@ namespace test {
 
     inline constexpr const char *SERVER_IP = "10.5.96.7";
 
-    inline constexpr size_t MSG_LIMIT_PER_CLIENT = 100'000;
+    inline constexpr size_t MSG_LIMIT_PER_CLIENT = 50;
 //    inline constexpr size_t MSG_LIMIT_PER_CLIENT = 1;
 
-    inline constexpr size_t CON_CLIENT_NUM = 1;
+    inline constexpr size_t CON_CLIENT_NUM = 500;
 
-    inline constexpr size_t REBORN_LIMIT_FOR_CLIENT = 1;
+    inline constexpr size_t REBORN_LIMIT_FOR_CLIENT = 10;
 
     inline constexpr size_t TOTAL_MSG_CNT = MSG_LIMIT_PER_CLIENT * CON_CLIENT_NUM * REBORN_LIMIT_FOR_CLIENT;
 

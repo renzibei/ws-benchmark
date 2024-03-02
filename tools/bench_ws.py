@@ -70,7 +70,7 @@ def test_echo():
     # min_msg_size = 64
     # max_msg_size = 1 << 21
     # msg_cnt = 100000
-    total_msg_size = 1 << 34
+    total_msg_size = 1 << 33
     # if len(sys.argv) >= 7:
     #     min_msg_size = int(sys.argv[6])
     # if len(sys.argv) >= 8:
@@ -136,12 +136,13 @@ def test_echo():
         process_list = []
         # first_proc = subprocess.Popen(arg_list_list[0])
         # time.sleep(0.1)
+        # Maybe need to let the C++ program wait
         for i, arg_list in enumerate(arg_list_list):
             print("Will run: ", arg_list)
             proc = subprocess.Popen(arg_list)
             process_list.append(proc)
             if i == 0:
-                time.sleep(1.0)
+                time.sleep(2.0)
         # reversed to make sure primary proc exit at last
         for i, proc in enumerate(reversed(process_list)):
             proc.wait()

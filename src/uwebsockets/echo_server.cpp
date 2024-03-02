@@ -26,6 +26,7 @@ int main(int argc, const char** argv) {
         return -1;
     }
     size_t MAX_DATA_LEN = size_t(max_msg_len);
+//    size_t MAX_DATA_LEN = test::MAX_DATA_LEN;
 
     const char* export_file_path = argv[4];
     FILE *output_fp = fopen(export_file_path, "w");
@@ -47,7 +48,8 @@ int main(int argc, const char** argv) {
 
     /* ws->getUserData returns one of these */
     struct PerSocketData {
-
+        PerSocketData() {};
+        PerSocketData(int x) {}
         /* Fill with user data */
     };
 
@@ -107,13 +109,16 @@ int main(int argc, const char** argv) {
 
     /* Keep in mind that uWS::SSLApp({options}) is the same as uWS::App() when compiled without SSL support.
      * You may swap to using uWS:App() if you don't need SSL */
-    uWS::App(
-//            {
+    uWS::SSLApp(
+            {
+                .key_file_name = test::key_file_path,
+                .cert_file_name = test::cert_file_path,
+
             /* There are example certificates in uWebSockets.js repo */
 //            .key_file_name = "misc/key.pem",
 //            .cert_file_name = "misc/cert.pem",
 //            .passphrase = "1234"
-//        }
+            }
         ).ws<PerSocketData>("/", {
             /* Settings */
 //            .compression = uWS::CompressOptions(uWS::DEDICATED_COMPRESSOR_4KB | uWS::DEDICATED_DECOMPRESSOR),
@@ -139,7 +144,9 @@ int main(int argc, const char** argv) {
                 }
                 last_interval_recv_bytes += msg_size;
                 ++last_interval_recv_msg_cnt;
+//                printf("recv msg size: %zu\n", msg_size);
                 ws->send(message, opCode, true);
+//                print("send msg size: %zu\n", msg_size);
                 // please note that send does not mean all sent to the wire
                 last_msg_size = msg_size;
                 last_interval_send_bytes += msg_size;

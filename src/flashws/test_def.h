@@ -29,6 +29,13 @@ namespace test {
 
     inline constexpr int LISTEN_BACKLOG = 128;
 
+    inline constexpr bool ENABLE_TLS = true;
+    inline constexpr bool SHOULD_VERIFY_CERT = true;
+    inline constexpr const char* hostname = "";
+    inline constexpr const char* cert_file_path = "./certs/server.crt";
+    inline constexpr const char* key_file_path = "./certs/server.key";
+    inline constexpr const char* ca_file_path = "./certs/ca.pem";
+
 #define ENABLE_NO_DELAY 1
 
 } // namespace test
