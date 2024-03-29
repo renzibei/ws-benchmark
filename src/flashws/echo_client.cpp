@@ -217,7 +217,7 @@ namespace test {
                         if (client_msg_cnt == MSG_LIMIT_PER_CLIENT) {
                             auto old_buf = std::move(*temp_buf_);
                             FWS_ASSERT(old_buf.data != nullptr);
-                            FWS_ASSERT(old_buf.size == MAX_DATA_LEN);
+                            FWS_ASSERT(old_buf.size == (ssize_t)MAX_DATA_LEN);
                             auto cur_reborn_cnt = client_ctx.reborn_cnt;
                             ws_socket.Close(fws::WS_NORMAL_CLOSE, {});
 
@@ -407,7 +407,7 @@ namespace test {
 //        int client_cnt = CON_CLIENT_NUM;
 //        const char* data_file_path = log_data_file_path;
 
-        printf("Set host: %s, port: %d, msg_size: %zu, msg_cnt_per_client: %ld,"
+        printf("Set host: %s, port: %d, msg_size: %zu, msg_cnt_per_client: %lld,"
                "data file path: %s\n",
                SERVER_IP, SERVER_PORT, MAX_DATA_LEN, msg_cnt_per_c, data_file_path);
 
